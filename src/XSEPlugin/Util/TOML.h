@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include <toml++/toml.hpp>
+#include <toml++/toml.h>
 
 template <class T>
 concept TOMLScalar = std::is_arithmetic_v<T> || std::is_same_v<T, std::string>;
@@ -81,10 +81,11 @@ template <bool required = false>
 
 inline void SetTOMLSection(toml::table& a_table, std::string_view a_key, toml::table&& a_section)
 {
-    auto [pos, ok] = a_table.emplace(a_key, std::move(a_section));
-    if (!ok) {
+    if (a_table.contains(a_key)) {
         throw TOMLError(std::format("'{}' exists", a_key));
     }
+
+    a_table.insert(std::string{ a_key }, std::move(a_section));
 }
 
 template <TOMLScalar T, bool required = false>

@@ -1,6 +1,6 @@
 #include "GameSettings.h"
 
-#include <toml++/toml.hpp>
+#include <toml++/toml.h>
 
 #include <XSEPlugin/Util/TOML.h>
 
@@ -72,7 +72,7 @@ namespace
                 }
             }
             break;
-        case RE::Setting::Type::kSignedInteger:
+        case RE::Setting::Type::kInteger:
             {
                 if (auto value = a_node.value<std::int32_t>()) {
                     setting->data.i = *value;
@@ -82,10 +82,20 @@ namespace
                 }
             }
             break;
-        case RE::Setting::Type::kColor:
+        case RE::Setting::Type::kColorRGB:
             {
                 if (auto value = a_node.value<std::uint32_t>()) {
-                    setting->data.r = IntToColor(*value);
+                    setting->SetColor(*value);
+                    SKSE::log::info("Set {} = 0x{:08X}", a_name, *value);
+                } else {
+                    SKSE::log::error("Setting '{}' must be color.", a_name);
+                }
+            }
+            break;
+        case RE::Setting::Type::kColorRGBA:
+            {
+                if (auto value = a_node.value<std::uint32_t>()) {
+                    setting->SetColorA(*value);
                     SKSE::log::info("Set {} = 0x{:08X}", a_name, *value);
                 } else {
                     SKSE::log::error("Setting '{}' must be color.", a_name);

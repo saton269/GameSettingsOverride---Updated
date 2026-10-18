@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.21)
 
 project(
     ccld_GameSettingsOverride
@@ -11,6 +11,15 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION "$<$<CONFIG:Release>:ON>")
 
+# Disable CommonLibSSE-NG tests.
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+# Use the working HelloWorld template's local CommonLibSSE-NG.
+add_subdirectory(lib/commonlibsse-ng)
+include(lib/commonlibsse-ng/cmake/CommonLibSSE.cmake)
+include(cmake/headerlist.cmake)
+include(cmake/sourcelist.cmake)
+
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/version.rc"
@@ -18,9 +27,6 @@ configure_file(
 )
 
 # -- Declare Sources -----------------------------------------------------------
-
-include(cmake/headerlist.cmake)
-include(cmake/sourcelist.cmake)
 
 source_group(
     TREE
@@ -31,17 +37,11 @@ source_group(
 )
 
 # -- Declare Dependencies ------------------------------------------------------
+find_package(fmt CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
+find_package(tomlplusplus CONFIG REQUIRED)
 
-if(NOT CMAKE_PREFIX_PATH AND DEFINED ENV{DEV_INSTALL_PATH})
-    cmake_path(SET CMAKE_PREFIX_PATH "$ENV{DEV_INSTALL_PATH}/${CMAKE_BUILD_TYPE}")
-endif()
-
-find_package(CommonLibSSE REQUIRED)
-find_package(fmt REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(tomlplusplus REQUIRED)
-
-# -- Declare Targets -----------------------------------------------------------
+# Build the original plugin.
 
 add_commonlibsse_plugin(
     "${PROJECT_NAME}"
@@ -55,6 +55,7 @@ target_compile_definitions(
     "${PROJECT_NAME}"
     PRIVATE
         _UNICODE
+        UNICODE
         NOMINMAX
 )
 
@@ -97,3 +98,32 @@ target_precompile_headers(
     PRIVATE
         "src/XSEPlugin/PCH.h"
 )
+
+# Automatically deploy the built DLL, like the HelloWorld template.
+if(DEFINED OUTPUT_FOLDER)
+    set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
+
+    message(STATUS "SKSE plugin output folder: ${DLL_FOLDER}")
+
+    add_custom_command(
+        TARGET "${PROJECT_NAME}"
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "${DLL_FOLDER}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "$<TARGET_FILE:${PROJECT_NAME}>"
+            "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+        VERBATIM
+    )
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_custom_command(
+            TARGET "${PROJECT_NAME}"
+            POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_PDB_FILE:${PROJECT_NAME}>"
+                "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
+            VERBATIM
+        )
+    endif()
+endif()
